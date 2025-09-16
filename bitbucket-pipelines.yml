@@ -1,40 +1,34 @@
-# bitbucket-pipelines.yml
-# UI tests con Serenity/Selenium + Chrome (headless)
-
 image: maven:3.9.6-eclipse-temurin-17
-
-definitions:
-  caches:
-    maven: ~/.m2
 
 pipelines:
   default:
     - step:
         name: UI Tests (Serenity/Selenium)
-        caches:
-          - maven
+        caches: [maven]
         script:
-          - apt-get update
-          - apt-get install -y wget unzip curl gnupg ca-certificates
-          # Instalar Chrome desde .deb (evita problemas de llaves/repos)
+          - apt-get update && apt-get install -y wget unzip curl gnupg ca-certificates
           - wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           - apt-get install -y ./google-chrome-stable_current_amd64.deb || apt-get -f install -y
-          - google-chrome --version
-          # Instalar Chromedriver compatible (Chrome for Testing)
-          - |
-            set -e
-            CHROME_MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1)
-            CHROMEDRIVER_VER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR}")
-            wget -q -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VER}/linux64/chromedriver-linux64.zip"
-            unzip -o /tmp/chromedriver.zip -d /tmp
-            mkdir -p drivers
-            mv -f /tmp/chromedriver-linux64/chromedriver drivers/
-            chmod +x drivers/chromedriver
-            drivers/chromedriver --version
-          # Ejecutar tests (UNA sola lÃ­nea; comillas en switches)
-          - mvn -B clean test -Dserenity.configuration=serenity-ci.properties -Dwebdriver.chrome.driver="$(pwd)/drivers/chromedriver" "-Dchrome.switches=--headless=new,--no-sandbox,--disable-dev-shm-usage,--window-size=1920,1080"
-          # Reporte Serenity
+          - which google-chrome || true
+          - which google-chrome-stable || true
+          - google-chrome --version || google-chrome-stable --version || true
+          # Chromedriver compatible
+          - CHROME_MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1 || google-chrome-stable --version | grep -oE '[0-9]+' | head -1)
+          - CHROMEDRIVER_VER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR}")
+          - wget -q -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VER}/linux64/chromedriver-linux64.zip"
+          - unzip -o /tmp/chromedriver.zip -d /tmp
+          - mkdir -p drivers && mv -f /tmp/chromedriver-linux64/chromedriver drivers/ && chmod +x drivers/chromedriver
+          - drivers/chromedriver --version
+          # Ejecutar tests (pasa la ruta del driver por system prop también)
+          - mvn -B clean test -Dserenity.configuration=serenity-ci.properties -Dwebdriver.chrome.driver="$(pwd)/drivers/chromedriver"
           - mvn -B serenity:aggregate
         artifacts:
+          - "target/site/serenity/**"
           - "target/serenity/**"
           - "target/screenshots/**"
+          - "target/chromedriver.log"
+        test:
+          reports:
+            junit:
+              - "target/surefire-reports/*.xml"
+              - "target/failsafe-reports/*.xml"
