@@ -1,11 +1,16 @@
-#  Template maven-build
+#  Template maven-build with Chrome for UI Testing
 
 #  This template allows you to test and build your Java project with Maven.
 #  The workflow allows running tests, code checkstyle and security scans on the default branch.
+#  Includes Chrome browser for UI automation testing.
 
 # Prerequisites: pom.xml and appropriate project structure should exist in the repository.
 
-image: maven:3.6.3
+image: maven:3.8.6-openjdk-11
+
+definitions:
+  caches:
+    maven: ~/.m2
 
 pipelines:
   default:
@@ -15,7 +20,25 @@ pipelines:
           caches:
             - maven
           script:
-            - mvn -B verify --file pom.xml
+            # Install Chrome and ChromeDriver
+            - apt-get update
+            - apt-get install -y wget gnupg
+            - wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+            - echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
+            - apt-get update
+            - apt-get install -y google-chrome-stable
+            # Download ChromeDriver
+            - CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1-3)
+            - CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}")
+            - wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+            - unzip /tmp/chromedriver.zip -d /tmp/
+            - chmod +x /tmp/chromedriver
+            - mkdir -p drivers/chromedriver-linux64
+            - mv /tmp/chromedriver drivers/chromedriver-linux64/
+            # Set ChromeDriver path
+            - export CHROME_DRIVER_PATH=$(pwd)/drivers/chromedriver-linux64/chromedriver
+            # Run tests with CI configuration
+            - mvn -B clean test -Dserenity.configuration=serenity-ci.properties
           after-script:
               # Collect checkstyle results, if any, and convert to Bitbucket Code Insights.
             - pipe: atlassian/checkstyle-report:0.3.0

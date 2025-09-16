@@ -275,14 +275,25 @@ public class ExplicitValidations {
     }
 
     /**
-     * Valida que el carrito mantiene los productos
+     * Valida que el carrito mantiene los productos después de continuar comprando
      * @param actor El actor que ejecuta la validación
      */
     public static void validateCartMaintainsProducts(Actor actor) {
-        // Navegar al carrito para verificar que mantiene los productos
-        ExplicitHelpers.navigateToCart(actor);
-        boolean hasProducts = actor.asksFor(Visibility.of(CartPage.CART_ITEM));
-        assertThat("El carrito debería mantener los productos", hasProducts, is(true));
+        // Verificar que estamos de vuelta en la página de inventario
+        boolean isOnInventoryPage = actor.asksFor(Visibility.of(InventoryPage.INVENTORY_TITLE));
+        assertThat("Debería estar en la página de inventario", isOnInventoryPage, is(true));
+        
+        // Verificar que el badge del carrito muestra al menos 1 producto
+        boolean hasBadge = actor.asksFor(Visibility.of(InventoryPage.CART_BADGE));
+        if (hasBadge) {
+            int cartCount = actor.asksFor(CartBadgeCount.value());
+            assertThat("El carrito debería mantener los productos (badge visible)", cartCount, greaterThan(0));
+        } else {
+            // Si no hay badge visible, verificar navegando al carrito
+            ExplicitHelpers.navigateToCart(actor);
+            boolean hasProducts = actor.asksFor(Visibility.of(CartPage.CART_ITEM));
+            assertThat("El carrito debería mantener los productos (verificación en carrito)", hasProducts, is(true));
+        }
     }
 
     /**
