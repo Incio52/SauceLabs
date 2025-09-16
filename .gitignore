@@ -106,3 +106,15 @@ node_modules/
 build/
 dist/
 out/
+
+# Applications
+*.app
+*.exe
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
