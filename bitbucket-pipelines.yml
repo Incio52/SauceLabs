@@ -1,34 +1,63 @@
-# Bitbucket Pipelines Template to build, test your Android Application.
+# Serenity BDD Automation Pipeline
+# This pipeline runs UI automation tests with Chrome browser
 
-# This template contains 3 parallel steps to build Android application, run Android code scanning tool and run unit tests.
-# For more details see https://support.atlassian.com/bitbucket-cloud/docs/configure-bitbucket-pipelinesyml/
+image: maven:3.8.6-openjdk-11
 
-# Docker for Android SDK 30 with pre-installed build tools and emulator image.
-# Note: This docker image is created and maintained by a non official third party. For more details see: https://hub.docker.com/r/androidsdk/android-30
-image: androidsdk/android-30
+definitions:
+  caches:
+    maven: ~/.m2
 
 pipelines:
-  default:                # pipeline definition for all branches
-    - parallel:           # running a set of steps at the same time https://support.atlassian.com/bitbucket-cloud/docs/set-up-or-run-parallel-steps/
-        - step:           # step to build Android debug application
-            name: Android Debug Application
-            caches:       # caching speed up subsequent execution https://support.atlassian.com/bitbucket-cloud/docs/cache-dependencies/
-              - gradle
-            script:
-              - ./gradlew assembleDebug
-            artifacts:
-              - app/build/outputs/**        # artifacts are files that are produced by a step https://support.atlassian.com/bitbucket-cloud/docs/use-artifacts-in-steps/
-        - step:           # step to run lint (Android code scanning tool)
-            name: Lint
-            caches:       # caching speed up subsequent execution https://support.atlassian.com/bitbucket-cloud/docs/cache-dependencies/
-              - gradle
-            script:
-              - ./gradlew lint
-            artifacts:
-              - app/build/reports/**        # artifacts are files that are produced by a step https://support.atlassian.com/bitbucket-cloud/docs/use-artifacts-in-steps/
-        - step:           # step to run unit tests
-            name: Unit Tests
-            caches:
-              - gradle    # caching speed up subsequent execution https://support.atlassian.com/bitbucket-cloud/docs/cache-dependencies/
-            script:
-              - ./gradlew testDebugUnitTest # test reporting is automatically enabled https://support.atlassian.com/bitbucket-cloud/docs/test-reporting-in-pipelines/
+  default:
+    - step:
+        name: Build and Test
+        caches:
+          - maven
+        script:
+          # Update system packages
+          - apt-get update
+          - apt-get install -y wget gnupg unzip curl
+          
+          # Install Google Chrome
+          - wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+          - echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
+          - apt-get update
+          - apt-get install -y google-chrome-stable
+          
+          # Download and setup ChromeDriver
+          - CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1-3)
+          - echo "Chrome version: $CHROME_VERSION"
+          - CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}")
+          - echo "ChromeDriver version: $CHROMEDRIVER_VERSION"
+          - wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+          - unzip /tmp/chromedriver.zip -d /tmp/
+          - chmod +x /tmp/chromedriver
+          - mkdir -p drivers/chromedriver-linux64
+          - mv /tmp/chromedriver drivers/chromedriver-linux64/
+          - ls -la drivers/chromedriver-linux64/
+          
+          # Set environment variables
+          - export CHROME_DRIVER_PATH=$(pwd)/drivers/chromedriver-linux64/chromedriver
+          - export DISPLAY=:99
+          
+          # Verify Chrome and ChromeDriver installation
+          - google-chrome --version
+          - drivers/chromedriver-linux64/chromedriver --version
+          
+          # Run Maven tests with CI configuration
+          - mvn -B clean test -Dserenity.configuration=serenity-ci.properties -Dwebdriver.chrome.driver=$CHROME_DRIVER_PATH
+          
+          # Generate Serenity reports
+          - mvn serenity:aggregate
+        artifacts:
+          - target/serenity/**
+          - target/screenshots/**
+        after-script:
+          # Collect checkstyle results if any
+          - pipe: atlassian/checkstyle-report:0.3.0
+          
+    - step:
+        name: Security Scan
+        script:
+          # Run security scan for sensitive data
+          - pipe: atlassian/git-secrets-scan:0.5.1
