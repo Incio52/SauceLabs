@@ -1,5 +1,4 @@
 image: docker:24.0
-
 options:
   docker: true
 
@@ -9,24 +8,18 @@ pipelines:
         name: Build image & run tests in container
         services: [docker]
         script:
-          # 1) Desactivar BuildKit (evita --privileged del builder)
           - export DOCKER_BUILDKIT=0
-          - docker version && docker info
-
-          # 2) Construir la imagen con tu Dockerfile del repo
           - docker build -t serenity-chrome:ci .
-
-          # 3) Cache local de Maven (montada al contenedor)
           - mkdir -p .m2
-
-          # 4) Ejecutar pruebas dentro del contenedor
-          - docker run --rm \
+          - |
+            docker run --rm \
               -v "$BITBUCKET_CLONE_DIR":/workspace \
               -v "$BITBUCKET_CLONE_DIR/.m2":/root/.m2 \
               -w /workspace \
-              -e MAVEN_OPTS="-Dmaven.repo.local=/root/.m2" \
+              -e MAVEN_OPTS=-Dmaven.repo.local=/root/.m2 \
               serenity-chrome:ci \
               bash -lc '
+                set -euxo pipefail
                 export BASE_URL="https://www.saucedemo.com/";
                 mvn -B clean test \
                   -Dserenity.configuration=serenity-ci.properties \
