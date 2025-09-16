@@ -1,4 +1,3 @@
-# bitbucket-pipelines.yml (build & run con Docker)
 image: docker:24.0
 
 options:
@@ -10,13 +9,17 @@ pipelines:
         name: Build image & run tests in container
         services: [docker]
         script:
-          # Construir la imagen con el Dockerfile del repo
-          - DOCKER_BUILDKIT=1 docker build -t serenity-chrome:ci .
+          # 1) Desactivar BuildKit (evita --privileged del builder)
+          - export DOCKER_BUILDKIT=0
+          - docker version && docker info
 
-          # Caché de Maven dentro del workspace (se persistirá como artifacts si quieres)
+          # 2) Construir la imagen con tu Dockerfile del repo
+          - docker build -t serenity-chrome:ci .
+
+          # 3) Cache local de Maven (montada al contenedor)
           - mkdir -p .m2
 
-          # Ejecutar los tests dentro del contenedor, montando el repo
+          # 4) Ejecutar pruebas dentro del contenedor
           - docker run --rm \
               -v "$BITBUCKET_CLONE_DIR":/workspace \
               -v "$BITBUCKET_CLONE_DIR/.m2":/root/.m2 \
@@ -32,7 +35,6 @@ pipelines:
                   -e -Dsurefire.printSummary=true;
                 mvn -B serenity:aggregate
               '
-
         artifacts:
           - target/site/serenity/**
           - target/serenity/**
