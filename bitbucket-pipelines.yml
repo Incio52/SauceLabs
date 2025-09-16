@@ -7,19 +7,33 @@ pipelines:
         caches: [maven]
         script:
           - apt-get update && apt-get install -y wget unzip curl gnupg ca-certificates
+          # Chrome estable por .deb (evita llaves/Repos viejos)
           - wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           - apt-get install -y ./google-chrome-stable_current_amd64.deb || apt-get -f install -y
-          - which google-chrome || true
-          - which google-chrome-stable || true
-          - google-chrome --version || google-chrome-stable --version || true
-          # Chromedriver compatible
-          - CHROME_MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1 || google-chrome-stable --version | grep -oE '[0-9]+' | head -1)
-          - CHROMEDRIVER_VER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR}")
-          - wget -q -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VER}/linux64/chromedriver-linux64.zip"
-          - unzip -o /tmp/chromedriver.zip -d /tmp
-          - mkdir -p drivers && mv -f /tmp/chromedriver-linux64/chromedriver drivers/ && chmod +x drivers/chromedriver
-          - drivers/chromedriver --version
-          # Ejecutar tests (pasa la ruta del driver por system prop también)
+          # Detectar binario y normalizar a /usr/bin/google-chrome
+          - |
+            set -e
+            BIN=$(command -v google-chrome || true)
+            [ -z "$BIN" ] && BIN=$(command -v google-chrome-stable || true)
+            echo "Chrome bin: $BIN"
+            ln -sf "$BIN" /usr/bin/google-chrome
+            google-chrome --version || true
+          # Descargar Chromedriver compatible (Chrome for Testing, misma major)
+          - |
+            set -e
+            MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1)
+            VER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${MAJOR}")
+            echo "Chrome MAJOR=$MAJOR  |  Chromedriver VER=$VER"
+            wget -q -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${VER}/linux64/chromedriver-linux64.zip"
+            unzip -o /tmp/chromedriver.zip -d /tmp
+            mkdir -p drivers
+            mv -f /tmp/chromedriver-linux64/chromedriver drivers/
+            chmod +x drivers/chromedriver
+            drivers/chromedriver --version
+          # Comprobación previa: arrancar el driver y consultar /status
+          - drivers/chromedriver --port=9515 > target/chromedriver-boot.log 2>&1 &
+          - sleep 2 && curl -s http://127.0.0.1:9515/status || true
+          # Ejecutar tests (paso la config y la ruta absoluta del driver por -D)
           - mvn -B clean test -Dserenity.configuration=serenity-ci.properties -Dwebdriver.chrome.driver="$(pwd)/drivers/chromedriver"
           - mvn -B serenity:aggregate
         artifacts:
@@ -27,6 +41,7 @@ pipelines:
           - "target/serenity/**"
           - "target/screenshots/**"
           - "target/chromedriver.log"
+          - "target/chromedriver-boot.log"
         test:
           reports:
             junit:
