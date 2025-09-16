@@ -1,31 +1,24 @@
-image: maven:3.8.6-openjdk-11
-
-definitions:
-  caches:
-    maven: ~/.m2
-
 pipelines:
   default:
     - step:
         name: UI Tests (Serenity/Selenium)
         caches: [maven]
         script:
-          - apt-get update
-          - apt-get install -y wget gnupg unzip curl
-          # Chrome
+          - apt-get update && apt-get install -y wget gnupg unzip curl
           - wget -qO- https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google.gpg
           - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
           - apt-get update && apt-get install -y google-chrome-stable
-          # ChromeDriver (Chrome for Testing)
           - MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1)
           - VER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${MAJOR}")
           - wget -O /tmp/cd.zip "https://storage.googleapis.com/chrome-for-testing-public/${VER}/linux64/chromedriver-linux64.zip"
-          - unzip -o /tmp/cd.zip -d /tmp && mkdir -p drivers && mv /tmp/chromedriver-linux64/chromedriver drivers/ && chmod +x drivers/chromedriver
+          - unzip -o /tmp/cd.zip -d /tmp
+          - mkdir -p drivers && mv /tmp/chromedriver-linux64/chromedriver drivers/ && chmod +x drivers/chromedriver
           - google-chrome --version && drivers/chromedriver --version
-          # Tests (headless)
-          - mvn -B clean test \
-              -Dwebdriver.chrome.driver=$(pwd)/drivers/chromedriver \
-              -Dchrome.switches="--headless=new,--no-sandbox,--disable-dev-shm-usage,--window-size=1920,1080"
+          - >
+            mvn -B clean test
+            -Dserenity.configuration=serenity-ci.properties
+            -Dwebdriver.chrome.driver="$(pwd)/drivers/chromedriver"
+            -Dchrome.switches="--headless=new,--no-sandbox,--disable-dev-shm-usage,--window-size=1920,1080"
           - mvn -B serenity:aggregate
         artifacts:
           - target/serenity/**
