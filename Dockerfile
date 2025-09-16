@@ -12,7 +12,7 @@ RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd6
  && apt-get install -y ./google-chrome-stable_current_amd64.deb || apt-get -f install -y \
  && rm -f google-chrome-stable_current_amd64.deb
 
-# Chromedriver que haga match con la mayor de Chrome (fallback a latest)
+# Chromedriver que haga match con la major de Chrome (fallback a latest si no resuelve)
 RUN set -eux; \
   CHROME_MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1 || true); \
   if [ -n "$CHROME_MAJOR" ]; then \
