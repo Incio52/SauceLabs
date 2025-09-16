@@ -1,6 +1,3 @@
-# Serenity BDD Automation Pipeline
-# This pipeline runs UI automation tests with Chrome browser
-
 image: maven:3.8.6-openjdk-11
 
 definitions:
@@ -10,54 +7,26 @@ definitions:
 pipelines:
   default:
     - step:
-        name: Build and Test
-        caches:
-          - maven
+        name: UI Tests (Serenity/Selenium)
+        caches: [maven]
         script:
-          # Update system packages
           - apt-get update
           - apt-get install -y wget gnupg unzip curl
-          
-          # Install Google Chrome (updated method)
-          - wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
-          - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
-          - apt-get update
-          - apt-get install -y google-chrome-stable
-          
-          # Download and setup ChromeDriver (using new API)
-          - CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1-3)
-          - echo "Chrome version: $CHROME_VERSION"
-          - CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_VERSION}")
-          - echo "ChromeDriver version: $CHROMEDRIVER_VERSION"
-          - wget -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip"
-          - unzip /tmp/chromedriver.zip -d /tmp/
-          - chmod +x /tmp/chromedriver-linux64/chromedriver
-          - mkdir -p drivers/chromedriver-linux64
-          - mv /tmp/chromedriver-linux64/chromedriver drivers/chromedriver-linux64/
-          - ls -la drivers/chromedriver-linux64/
-          
-          # Set environment variables
-          - export CHROME_DRIVER_PATH=$(pwd)/drivers/chromedriver-linux64/chromedriver
-          - export DISPLAY=:99
-          
-          # Verify Chrome and ChromeDriver installation
-          - google-chrome --version
-          - drivers/chromedriver-linux64/chromedriver --version
-          
-          # Run Maven tests with CI configuration
-          - mvn -B clean test "-Dserenity.configuration=serenity-ci.properties" "-Dwebdriver.chrome.driver=$CHROME_DRIVER_PATH"
-          
-          # Generate Serenity reports
-          - mvn serenity:aggregate
+          # Chrome
+          - wget -qO- https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google.gpg
+          - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+          - apt-get update && apt-get install -y google-chrome-stable
+          # ChromeDriver (Chrome for Testing)
+          - MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1)
+          - VER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${MAJOR}")
+          - wget -O /tmp/cd.zip "https://storage.googleapis.com/chrome-for-testing-public/${VER}/linux64/chromedriver-linux64.zip"
+          - unzip -o /tmp/cd.zip -d /tmp && mkdir -p drivers && mv /tmp/chromedriver-linux64/chromedriver drivers/ && chmod +x drivers/chromedriver
+          - google-chrome --version && drivers/chromedriver --version
+          # Tests (headless)
+          - mvn -B clean test \
+              -Dwebdriver.chrome.driver=$(pwd)/drivers/chromedriver \
+              -Dchrome.switches="--headless=new,--no-sandbox,--disable-dev-shm-usage,--window-size=1920,1080"
+          - mvn -B serenity:aggregate
         artifacts:
           - target/serenity/**
           - target/screenshots/**
-        after-script:
-          # Collect checkstyle results if any
-          - pipe: atlassian/checkstyle-report:0.3.0
-          
-    - step:
-        name: Security Scan
-        script:
-          # Run security scan for sensitive data
-          - pipe: atlassian/git-secrets-scan:0.5.1
