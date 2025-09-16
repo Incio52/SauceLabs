@@ -18,34 +18,20 @@ pipelines:
           - apt-get update
           - apt-get install -y wget gnupg unzip curl
           
-          # Install Google Chrome
-          - wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-          - echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
+          # Install Google Chrome (updated method)
+          - wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
+          - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
           - apt-get update
           - apt-get install -y google-chrome-stable
           
-          # Download and setup ChromeDriver
-          - CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1-3)
-          - echo "Chrome version: $CHROME_VERSION"
-          - CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}")
-          - echo "ChromeDriver version: $CHROMEDRIVER_VERSION"
-          - wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
-          - unzip /tmp/chromedriver.zip -d /tmp/
-          - chmod +x /tmp/chromedriver
-          - mkdir -p drivers/chromedriver-linux64
-          - mv /tmp/chromedriver drivers/chromedriver-linux64/
-          - ls -la drivers/chromedriver-linux64/
-          
           # Set environment variables
-          - export CHROME_DRIVER_PATH=$(pwd)/drivers/chromedriver-linux64/chromedriver
           - export DISPLAY=:99
           
-          # Verify Chrome and ChromeDriver installation
+          # Verify Chrome installation
           - google-chrome --version
-          - drivers/chromedriver-linux64/chromedriver --version
           
-          # Run Maven tests with CI configuration
-          - mvn -B clean test -Dserenity.configuration=serenity-ci.properties -Dwebdriver.chrome.driver=$CHROME_DRIVER_PATH
+          # Run Maven tests with CI configuration (WebDriver Manager will auto-download ChromeDriver)
+          - mvn -B clean test "-Dserenity.configuration=serenity-ci.properties"
           
           # Generate Serenity reports
           - mvn serenity:aggregate
