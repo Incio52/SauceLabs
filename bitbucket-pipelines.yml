@@ -1,6 +1,5 @@
 image: docker:24.0
-options:
-  docker: true
+options: { docker: true }
 
 pipelines:
   default:
@@ -12,7 +11,7 @@ pipelines:
           - docker build -t serenity-chrome:ci .
           - mkdir -p .m2
           - |
-            docker run --rm \
+            docker run --rm --shm-size=2g \
               -v "$BITBUCKET_CLONE_DIR":/workspace \
               -v "$BITBUCKET_CLONE_DIR/.m2":/root/.m2 \
               -w /workspace \
@@ -20,15 +19,29 @@ pipelines:
               serenity-chrome:ci \
               bash -lc '
                 set -euxo pipefail
-                export BASE_URL="https://www.saucedemo.com/";
+                which google-chrome || true; google-chrome --version || true
+                which chromedriver || true; chromedriver --version || true
+
+                # Levanta Chromedriver y valida que responde
+                chromedriver --port=9515 > target/chromedriver-boot.log 2>&1 &
+                sleep 2
+                curl -s http://127.0.0.1:9515/status | tee target/chromedriver-status.json || true
+
+                export BASE_URL="https://www.saucedemo.com/"
                 mvn -B clean test \
                   -Dserenity.configuration=serenity-ci.properties \
                   -Dwebdriver.chrome.driver=/usr/local/bin/chromedriver \
                   -Dwebdriver.base.url="$BASE_URL" \
-                  -e -Dsurefire.printSummary=true;
+                  "-Dchrome.switches=--headless=new,--no-sandbox,--disable-dev-shm-usage,--remote-allow-origins=*,--window-size=1920,1080" \
+                  -Dwebdriver.chrome.verboseLogging=true \
+                  -e -Dsurefire.printSummary=true
+
                 mvn -B serenity:aggregate
               '
         artifacts:
           - target/site/serenity/**
           - target/serenity/**
           - target/screenshots/**
+          - target/chromedriver.log
+          - target/chromedriver-boot.log
+          - target/chromedriver-status.json
