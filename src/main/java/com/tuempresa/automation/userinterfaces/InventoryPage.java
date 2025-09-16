@@ -38,4 +38,9 @@ public class InventoryPage {
     // Items individuales de productos
     public static final Target PRODUCT_ITEMS = Target.the("items de productos")
             .located(By.className("inventory_item"));
+         
+            
+    public static final Target INVENTORY_TITLE =
+        Target.the("inventory title").located(By.cssSelector("h1.inventory"));
+
 }

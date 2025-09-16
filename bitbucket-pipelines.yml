@@ -1,49 +1,50 @@
-# Serenity BDD Automation Pipeline
-# This pipeline runs UI automation tests with Chrome browser
-
-image: maven:3.8.6-openjdk-11
-
-definitions:
-  caches:
-    maven: ~/.m2
+image: docker:24.0
+options: { docker: true }
 
 pipelines:
   default:
     - step:
-        name: Build and Test
-        caches:
-          - maven
+        name: Build image & run tests in container
+        services: [docker]
         script:
-          # Update system packages
-          - apt-get update
-          - apt-get install -y wget gnupg unzip curl
-          
-          # Install Google Chrome (updated method)
-          - wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
-          - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
-          - apt-get update
-          - apt-get install -y google-chrome-stable
-          
-          # Set environment variables
-          - export DISPLAY=:99
-          
-          # Verify Chrome installation
-          - google-chrome --version
-          
-          # Run Maven tests with CI configuration (WebDriver Manager will auto-download ChromeDriver)
-          - mvn -B clean test "-Dserenity.configuration=serenity-ci.properties"
-          
-          # Generate Serenity reports
-          - mvn serenity:aggregate
+          - export DOCKER_BUILDKIT=0
+          - docker build -t serenity-chrome:ci .
+          - mkdir -p .m2
+          - |
+            docker run --rm --shm-size=2g \
+              -v "$BITBUCKET_CLONE_DIR":/workspace \
+              -v "$BITBUCKET_CLONE_DIR/.m2":/root/.m2 \
+              -w /workspace \
+              -e MAVEN_OPTS=-Dmaven.repo.local=/root/.m2 \
+              serenity-chrome:ci \
+              bash -lc '
+                set -euxo pipefail
+                which google-chrome; google-chrome --version
+                which chromedriver;   chromedriver --version
+
+                # Pre-check del driver: debe devolver JSON con "ready": true
+                chromedriver --port=9515 > target/chromedriver-boot.log 2>&1 &
+                sleep 2
+                curl -s http://127.0.0.1:9515/status | tee target/chromedriver-status.json
+
+                export BASE_URL="https://www.saucedemo.com/"
+                mvn -B clean test \
+                  -Dserenity.configuration=serenity-ci.properties \
+                  -Dwebdriver.chrome.driver=/usr/local/bin/chromedriver \
+                  -Dwebdriver.base.url="$BASE_URL" \
+                  "-Dchrome.switches=--headless=new,--no-sandbox,--disable-dev-shm-usage,--remote-allow-origins=*,--window-size=1920,1080" \
+                  -Dwebdriver.chrome.verboseLogging=true \
+                  -e -Dsurefire.printSummary=true \
+                || { echo ">> Falló mvn test, imprimiendo últimos surefire logs"; \
+                     tail -n +1 target/surefire-reports/*.txt 2>/dev/null | tail -n 200 || true; \
+                     exit 1; }
+
+                mvn -B serenity:aggregate
+              '
         artifacts:
+          - target/site/serenity/**
           - target/serenity/**
           - target/screenshots/**
-        after-script:
-          # Collect checkstyle results if any
-          - pipe: atlassian/checkstyle-report:0.3.0
-          
-    - step:
-        name: Security Scan
-        script:
-          # Run security scan for sensitive data
-          - pipe: atlassian/git-secrets-scan:0.5.1
+          - target/chromedriver.log
+          - target/chromedriver-boot.log
+          - target/chromedriver-status.json
