@@ -1,16 +1,25 @@
+# UI tests con Serenity/Selenium + Chrome (headless) en Bitbucket Pipelines
 image: maven:3.9.6-eclipse-temurin-17
+
+definitions:
+  caches:
+    maven: ~/.m2
 
 pipelines:
   default:
     - step:
         name: UI Tests (Serenity/Selenium)
-        caches: [maven]
+        caches:
+          - maven
         script:
+          # ====== Dependencias base ======
           - apt-get update && apt-get install -y wget unzip curl gnupg ca-certificates
-          # Chrome estable por .deb (evita llaves/Repos viejos)
+
+          # ====== Instalar Google Chrome (vía .deb para evitar problemas de repo/keys) ======
           - wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           - apt-get install -y ./google-chrome-stable_current_amd64.deb || apt-get -f install -y
-          # Detectar binario y normalizar a /usr/bin/google-chrome
+
+          # Normalizar binario a /usr/bin/google-chrome (algunas imágenes crean ...-stable)
           - |
             set -e
             BIN=$(command -v google-chrome || true)
@@ -18,23 +27,37 @@ pipelines:
             echo "Chrome bin: $BIN"
             ln -sf "$BIN" /usr/bin/google-chrome
             google-chrome --version || true
-          # Descargar Chromedriver compatible (Chrome for Testing, misma major)
+
+          # ====== Descargar Chromedriver con la MISMA major que Chrome (Chrome for Testing) ======
           - |
             set -e
             MAJOR=$(google-chrome --version | grep -oE '[0-9]+' | head -1)
             VER=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${MAJOR}")
-            echo "Chrome MAJOR=$MAJOR  |  Chromedriver VER=$VER"
+            echo "Chrome MAJOR=${MAJOR} | Chromedriver VER=${VER}"
             wget -q -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${VER}/linux64/chromedriver-linux64.zip"
             unzip -o /tmp/chromedriver.zip -d /tmp
             mkdir -p drivers
             mv -f /tmp/chromedriver-linux64/chromedriver drivers/
             chmod +x drivers/chromedriver
             drivers/chromedriver --version
-          # Comprobaci�n previa: arrancar el driver y consultar /status
+
+          # ====== Pre-chequeo del servicio de Chromedriver (opcional pero útil) ======
           - drivers/chromedriver --port=9515 > target/chromedriver-boot.log 2>&1 &
           - sleep 2 && curl -s http://127.0.0.1:9515/status || true
-          # Ejecutar tests (paso la config y la ruta absoluta del driver por -D)
-          - mvn -B clean test -Dserenity.configuration=serenity-ci.properties -Dwebdriver.chrome.driver="$(pwd)/drivers/chromedriver"
+
+          # ====== Base URL de la app bajo prueba (CAMBIA si no es SauceDemo) ======
+          - export BASE_URL="https://www.saucedemo.com/"
+          - echo "BASE_URL=${BASE_URL}"
+          - curl -I --retry 3 --retry-all-errors "${BASE_URL}"
+
+          # ====== Ejecutar tests ======
+          # Tip: añade -Dcucumber.filter.tags=@smoke para iteraciones rápidas
+          - mvn -B clean test \
+              -Dserenity.configuration=serenity-ci.properties \
+              -Dwebdriver.chrome.driver="$(pwd)/drivers/chromedriver" \
+              -Dwebdriver.base.url="${BASE_URL}"
+
+          # Reporte HTML de Serenity
           - mvn -B serenity:aggregate
         artifacts:
           - "target/site/serenity/**"
