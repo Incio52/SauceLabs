@@ -20,9 +20,9 @@ pipelines:
               bash -lc '
                 set -euxo pipefail
                 which google-chrome; google-chrome --version
-                which chromedriver; chromedriver --version
+                which chromedriver;   chromedriver --version
 
-                # Pre-check del driver: debe responder JSON con "ready":true
+                # Pre-check del driver: debe devolver JSON con "ready": true
                 chromedriver --port=9515 > target/chromedriver-boot.log 2>&1 &
                 sleep 2
                 curl -s http://127.0.0.1:9515/status | tee target/chromedriver-status.json
@@ -34,7 +34,10 @@ pipelines:
                   -Dwebdriver.base.url="$BASE_URL" \
                   "-Dchrome.switches=--headless=new,--no-sandbox,--disable-dev-shm-usage,--remote-allow-origins=*,--window-size=1920,1080" \
                   -Dwebdriver.chrome.verboseLogging=true \
-                  -e -Dsurefire.printSummary=true
+                  -e -Dsurefire.printSummary=true \
+                || { echo ">> Falló mvn test, imprimiendo últimos surefire logs"; \
+                     tail -n +1 target/surefire-reports/*.txt 2>/dev/null | tail -n 200 || true; \
+                     exit 1; }
 
                 mvn -B serenity:aggregate
               '
