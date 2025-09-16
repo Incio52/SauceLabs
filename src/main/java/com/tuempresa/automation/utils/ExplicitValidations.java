@@ -280,7 +280,7 @@ public class ExplicitValidations {
      */
     public static void validateCartMaintainsProducts(Actor actor) {
         // Verificar que estamos de vuelta en la página de inventario
-        boolean isOnInventoryPage = actor.asksFor(Visibility.of(InventoryPage.INVENTORY_TITLE));
+        boolean isOnInventoryPage = actor.asksFor(Visibility.of(InventoryPage.TITLE));
         assertThat("Debería estar en la página de inventario", isOnInventoryPage, is(true));
         
         // Verificar que el badge del carrito muestra al menos 1 producto
