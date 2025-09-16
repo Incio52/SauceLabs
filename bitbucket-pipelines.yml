@@ -19,13 +19,13 @@ pipelines:
               serenity-chrome:ci \
               bash -lc '
                 set -euxo pipefail
-                which google-chrome || true; google-chrome --version || true
-                which chromedriver || true; chromedriver --version || true
+                which google-chrome; google-chrome --version
+                which chromedriver; chromedriver --version
 
-                # Levanta Chromedriver y valida que responde
+                # Pre-check del driver: debe responder JSON con "ready":true
                 chromedriver --port=9515 > target/chromedriver-boot.log 2>&1 &
                 sleep 2
-                curl -s http://127.0.0.1:9515/status | tee target/chromedriver-status.json || true
+                curl -s http://127.0.0.1:9515/status | tee target/chromedriver-status.json
 
                 export BASE_URL="https://www.saucedemo.com/"
                 mvn -B clean test \
