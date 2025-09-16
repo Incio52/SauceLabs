@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Test defects",
+    "matchedStatuses": ["failed"]
+  },
+  {
+    "name": "Product defects",
+    "matchedStatuses": ["broken"]
+  },
+  {
+    "name": "Skipped tests",
+    "matchedStatuses": ["skipped"]
+  },
+  {
+    "name": "Passed tests",
+    "matchedStatuses": ["passed"]
+  },
+  {
+    "name": "Login Tests",
+    "messageRegex": ".*login.*"
+  },
+  {
+    "name": "Cart Tests",
+    "messageRegex": ".*cart.*"
+  },
+  {
+    "name": "Smoke Tests",
+    "messageRegex": ".*smoke.*"
+  },
+  {
+    "name": "Regression Tests",
+    "messageRegex": ".*regression.*"
+  }
+]

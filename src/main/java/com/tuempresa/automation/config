@@ -1,0 +1,125 @@
+package com.automation.config;
+
+import com.automation.utils.TestConstants;
+
+/**
+ * Configuración para métodos explícitos
+ */
+public class ExplicitConfig {
+
+    // Configuración de timeouts
+    public static final int DEFAULT_ELEMENT_TIMEOUT = TestConstants.DEFAULT_TIMEOUT;
+    public static final int SHORT_ELEMENT_TIMEOUT = TestConstants.SHORT_TIMEOUT;
+    public static final int LONG_ELEMENT_TIMEOUT = TestConstants.LONG_TIMEOUT;
+
+    // Configuración de esperas
+    public static final int IMPLICIT_WAIT = 5;
+    public static final int EXPLICIT_WAIT = 10;
+    public static final int PAGE_LOAD_TIMEOUT = 30;
+
+    // Configuración de capturas de pantalla
+    public static final String SCREENSHOT_DIRECTORY = "target/screenshots";
+    public static final String SCREENSHOT_FORMAT = "png";
+
+    // Configuración de reportes
+    public static final boolean ENABLE_DETAILED_LOGGING = true;
+    public static final boolean ENABLE_ELEMENT_HIGHLIGHTING = true;
+    public static final boolean ENABLE_AUTO_SCREENSHOTS = true;
+
+    // Configuración de validaciones
+    public static final boolean STRICT_VALIDATIONS = true;
+    public static final boolean CONTINUE_ON_VALIDATION_FAILURE = false;
+
+    // Configuración de datos de prueba
+    public static final String DEFAULT_USERNAME = TestConstants.STANDARD_USER;
+    public static final String DEFAULT_PASSWORD = TestConstants.PASSWORD;
+    public static final String DEFAULT_URL = TestConstants.SAUCE_DEMO_URL;
+
+    // Configuración de productos
+    public static final String[] ALL_PRODUCTS = {
+        TestConstants.BACKPACK_PRODUCT,
+        TestConstants.BIKE_LIGHT_PRODUCT,
+        TestConstants.BOLT_TSHIRT_PRODUCT,
+        TestConstants.FLEECE_JACKET_PRODUCT,
+        TestConstants.ONESIE_PRODUCT,
+        TestConstants.RED_TSHIRT_PRODUCT
+    };
+
+    // Configuración de mensajes de error esperados
+    public static final String[] EXPECTED_ERROR_MESSAGES = {
+        TestConstants.LOCKED_USER_ERROR,
+        TestConstants.INVALID_CREDENTIALS_ERROR,
+        TestConstants.REQUIRED_USERNAME_ERROR,
+        TestConstants.REQUIRED_PASSWORD_ERROR
+    };
+
+    // Configuración de navegación
+    public static final int MAX_NAVIGATION_ATTEMPTS = 3;
+    public static final int NAVIGATION_RETRY_DELAY = 1000; // milisegundos
+
+    // Configuración de elementos
+    public static final int MAX_ELEMENT_WAIT_ATTEMPTS = 5;
+    public static final int ELEMENT_RETRY_DELAY = 500; // milisegundos
+
+    // Configuración de performance
+    public static final int MAX_PAGE_LOAD_TIME = 10000; // milisegundos
+    public static final int MAX_ACTION_WAIT_TIME = 5000; // milisegundos
+
+    // Configuración de debugging
+    public static final boolean ENABLE_DEBUG_MODE = false;
+    public static final boolean ENABLE_VERBOSE_LOGGING = false;
+    public static final boolean ENABLE_ELEMENT_INSPECTION = false;
+
+    // Métodos de utilidad para configuración
+    public static boolean isDebugModeEnabled() {
+        return ENABLE_DEBUG_MODE;
+    }
+
+    public static boolean isVerboseLoggingEnabled() {
+        return ENABLE_VERBOSE_LOGGING;
+    }
+
+    public static boolean isElementHighlightingEnabled() {
+        return ENABLE_ELEMENT_HIGHLIGHTING;
+    }
+
+    public static boolean isAutoScreenshotEnabled() {
+        return ENABLE_AUTO_SCREENSHOTS;
+    }
+
+    public static boolean isStrictValidationEnabled() {
+        return STRICT_VALIDATIONS;
+    }
+
+    public static int getElementTimeout() {
+        return DEFAULT_ELEMENT_TIMEOUT;
+    }
+
+    public static int getShortTimeout() {
+        return SHORT_ELEMENT_TIMEOUT;
+    }
+
+    public static int getLongTimeout() {
+        return LONG_ELEMENT_TIMEOUT;
+    }
+
+    public static String getDefaultUsername() {
+        return DEFAULT_USERNAME;
+    }
+
+    public static String getDefaultPassword() {
+        return DEFAULT_PASSWORD;
+    }
+
+    public static String getDefaultUrl() {
+        return DEFAULT_URL;
+    }
+
+    public static String[] getAllProducts() {
+        return ALL_PRODUCTS.clone();
+    }
+
+    public static String[] getExpectedErrorMessages() {
+        return EXPECTED_ERROR_MESSAGES.clone();
+    }
+}
