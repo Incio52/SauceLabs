@@ -9,41 +9,31 @@ pipelines:
   default:
     - step:
         name: UI Tests (Serenity/Selenium)
-        caches:
-          - maven
+        caches: [maven]
         script:
-          # Dependencias base
-          - apt-get update && apt-get install -y wget unzip curl gnupg ca-certificates
-
-          # Instalar Google Chrome (vía .deb para evitar problemas de llaves/repos)
-          - wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          - apt-get install -y ./google-chrome-stable_current_amd64.deb || apt-get -f install -y
-
-          # Normalizar binario a /usr/bin/google-chrome y mostrar versión
+          # Instalar Chrome y Chromedriver compatible (con fallback)
           - |
             set -e
-            BIN="$(command -v google-chrome || true)"
-            [ -z "$BIN" ] && BIN="$(command -v google-chrome-stable || true)"
-            if [ -z "$BIN" ]; then
-              echo "ERROR: Chrome no está instalado o no está en PATH"
-              exit 1
-            fi
-            echo "Chrome bin => $BIN"
-            "$BIN" --version || true
-            ln -sf "$BIN" /usr/bin/google-chrome
+            apt-get update && apt-get install -y wget unzip curl gnupg ca-certificates
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            apt-get install -y ./google-chrome-stable_current_amd64.deb || apt-get -f install -y
 
-          # Descargar Chromedriver compatible (misma major) con fallback a LATEST_RELEASE
-          - |
-            set -e
-            MAJOR="$(google-chrome --version | grep -oE '[0-9]+' | head -1 || true)"
-            if [ -n "$MAJOR" ]; then
-              VER="$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${MAJOR}" || true)"
-              case "$VER" in *.*) : ;; *) echo "WARN: fallback a LATEST_RELEASE"; VER="$(curl -s https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE)";; esac
-            else
-              echo "WARN: no se pudo leer la major; usando LATEST_RELEASE"
-              VER="$(curl -s https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE)"
+            # Detectar binario real y normalizar a /usr/bin/google-chrome
+            CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || true)"
+            if [ -z "$CHROME_BIN" ]; then
+              echo "ERROR: Chrome no está instalado o no está en PATH"; exit 1
             fi
-            echo "Usando ChromeDriver: $VER"
+            echo "Chrome bin => $CHROME_BIN"
+            "$CHROME_BIN" --version
+            ln -sf "$CHROME_BIN" /usr/bin/google-chrome
+
+            # Resolver versión de Chromedriver por major, con fallback a LATEST_RELEASE
+            CHROME_MAJOR="$("$CHROME_BIN" --version | grep -oE '[0-9]+' | head -1)"
+            VER="$(curl -fsSL "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_${CHROME_MAJOR}" || true)"
+            if ! echo "$VER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "WARN: fallback a LATEST_RELEASE"; VER="$(curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE)"
+            fi
+            echo "Chromedriver => $VER"
             wget -q -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${VER}/linux64/chromedriver-linux64.zip"
             unzip -o /tmp/chromedriver.zip -d /tmp
             mkdir -p drivers
@@ -55,12 +45,12 @@ pipelines:
           - drivers/chromedriver --port=9515 > target/chromedriver-boot.log 2>&1 &
           - sleep 2 && curl -s http://127.0.0.1:9515/status || true
 
-          # Base URL de la app bajo prueba (cámbiala si no usas SauceDemo)
+          # Base URL de la app (cámbiala si no usas SauceDemo)
           - export BASE_URL="https://www.saucedemo.com/"
           - echo "BASE_URL=${BASE_URL}"
           - curl -I -L --retry 3 --fail "${BASE_URL}"
 
-          # Ejecutar tests (puedes añadir -Dcucumber.filter.tags=@smoke para iterar)
+          # Ejecutar tests (puedes añadir -Dcucumber.filter.tags=@smoke para iterar rápido)
           - mvn -B clean test \
               -Dserenity.configuration=serenity-ci.properties \
               -Dwebdriver.chrome.driver="$(pwd)/drivers/chromedriver" \
@@ -69,13 +59,13 @@ pipelines:
           # Reporte Serenity
           - mvn -B serenity:aggregate
         artifacts:
-          - "target/site/serenity/**"
-          - "target/serenity/**"
-          - "target/screenshots/**"
-          - "target/chromedriver.log"
-          - "target/chromedriver-boot.log"
+          - target/site/serenity/**
+          - target/serenity/**
+          - target/screenshots/**
+          - target/chromedriver.log
+          - target/chromedriver-boot.log
         test:
           reports:
             junit:
-              - "target/surefire-reports/*.xml"
-              - "target/failsafe-reports/*.xml"
+              - target/surefire-reports/*.xml
+              - target/failsafe-reports/*.xml
