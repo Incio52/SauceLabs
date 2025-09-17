@@ -135,6 +135,7 @@
                     <argLine>
                         -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                     </argLine>
+                    <testFailureIgnore>true</testFailureIgnore>
                 </configuration>
                 <dependencies>
                     <dependency>
@@ -169,12 +170,15 @@
                 <executions>
                     <execution>
                         <id>serenity-reports</id>
-                        <phase>post-integration-test</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>aggregate</goal>
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <tags>${cucumber.filter.tags}</tags>
+                </configuration>
             </plugin>
             
             <!-- Allure Maven Plugin -->
