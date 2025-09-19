@@ -5,7 +5,7 @@ import org.openqa.selenium.By;
 
 public class InventoryPage {
     public static final Target TITLE = Target.the("título de inventario")
-            .located(By.cssSelector(".title"));
+            .located(By.cssSelector(".title, .inventory"));
     public static final Target CART_ICON = Target.the("icono del carrito")
             .located(By.cssSelector(".shopping_cart_link"));
     public static final Target CART_BADGE = Target.the("contador del carrito")
@@ -40,7 +40,5 @@ public class InventoryPage {
             .located(By.className("inventory_item"));
          
             
-    public static final Target INVENTORY_TITLE =
-        Target.the("inventory title").located(By.cssSelector("h1.inventory"));
 
 }
