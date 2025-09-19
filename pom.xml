@@ -87,7 +87,7 @@
             <version>12.6.1.jre11</version>
             <scope>test</scope>
         </dependency>
-        
+
         <!-- Allure dependencies -->
         <dependency>
             <groupId>io.qameta.allure</groupId>
@@ -111,6 +111,14 @@
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-rest-assured</artifactId>
             <version>${allure.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- SLF4J Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.9</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -145,7 +153,7 @@
                     </dependency>
                 </dependencies>
             </plugin>
-            
+
             <!-- Maven Failsafe Plugin for Integration Tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -161,7 +169,7 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-            
+
             <!-- Serenity Maven Plugin -->
             <plugin>
                 <groupId>net.serenity-bdd.maven.plugins</groupId>
@@ -180,7 +188,7 @@
                     <tags>${cucumber.filter.tags}</tags>
                 </configuration>
             </plugin>
-            
+
             <!-- Allure Maven Plugin -->
             <plugin>
                 <groupId>io.qameta.allure</groupId>
@@ -192,17 +200,18 @@
                     <reportDirectory>${project.build.directory}/allure-report</reportDirectory>
                 </configuration>
             </plugin>
-            
+
             <!-- Maven Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-        <release>${maven.compiler.release}</release>
-      </configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
             </plugin>
-            
+
             <!-- Maven Resources Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -212,7 +221,7 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-            
+
             <!-- Maven Clean Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
